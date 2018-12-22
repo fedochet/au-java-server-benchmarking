@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+option java_package = "proto";
+option java_multiple_files = true;
+
+message IntArrayJob {
+    repeated int32 data = 1;
+}
