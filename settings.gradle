@@ -1,4 +1,5 @@
 rootProject.name = 'server-architecture-benchmarking'
 include 'client-app'
+include 'server-app'
 include 'commons'
 
