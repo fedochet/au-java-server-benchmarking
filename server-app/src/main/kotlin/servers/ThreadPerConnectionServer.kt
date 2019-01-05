@@ -89,6 +89,6 @@ private class ClientHandler(private val clientSocket: Socket) : Runnable {
 
 private fun performRequest(buffer: ByteArray): IntArrayJob {
     val arrayJob = IntArrayJob.parseFrom(buffer)
-    val sorted = arrayJob.dataList.sorted()
+    val sorted = arrayJob.dataList.insertionSorted()
     return IntArrayJob.newBuilder().addAllData(sorted).build()
 }
