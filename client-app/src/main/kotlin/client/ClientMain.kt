@@ -1,8 +1,10 @@
 package client
 
 import com.fasterxml.jackson.databind.SerializationFeature
+import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
@@ -11,8 +13,6 @@ import io.ktor.response.respond
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.ShutDownUrl
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import java.net.InetAddress
 
 @Volatile
@@ -26,36 +26,35 @@ data class SessionConfig(
     val pauseDuration: Long
 )
 
-fun main(args: Array<String>) {
-    val server = embeddedServer(Netty, port = 8080) {
-        install(ContentNegotiation) {
-            jackson {
-                enable(SerializationFeature.INDENT_OUTPUT) // Pretty Prints the JSON
-            }
-        }
-
-        install(ShutDownUrl.ApplicationCallFeature) {
-            shutDownUrl = "/shutdown"
-            exitCodeSupplier = { 0 }
-        }
-
-        routing {
-            post("/start") {
-                val config = call.receive<SessionConfig>()
-                session = Session(config).apply { start() }
-                call.respond(HttpStatusCode.OK)
-            }
-
-            post("/stop") {
-                val currentSession = session ?: throw IllegalStateException("No session is running!")
-                session = null
-                currentSession.stop()
-
-                call.respond(HttpStatusCode.OK)
-            }
+fun Application.main() {
+    install(CallLogging)
+    install(ContentNegotiation) {
+        jackson {
+            enable(SerializationFeature.INDENT_OUTPUT) // Pretty Prints the JSON
         }
     }
 
-    server.start(wait = false)
+    install(ShutDownUrl.ApplicationCallFeature) {
+        shutDownUrl = "/shutdown"
+        exitCodeSupplier = { 0 }
+    }
+
+    routing {
+        post("/start") {
+            val config = call.receive<SessionConfig>()
+            session = Session(config).apply { start() }
+            call.respond(HttpStatusCode.OK)
+        }
+
+        post("/stop") {
+            val currentSession = session ?: throw IllegalStateException("No session is running!")
+            session = null
+            currentSession.stop()
+
+            call.respond(HttpStatusCode.OK)
+        }
+    }
 }
+
+fun main(args: Array<String>) = io.ktor.server.netty.EngineMain.main(args)
 

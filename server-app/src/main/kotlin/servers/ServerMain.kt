@@ -15,7 +15,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 
 enum class ServerType {
-    SINGLE_THREAD,
+    THREAD_PER_CONNECTION,
     THREAD_PLUS_POOL,
     NON_BLOCKING
 }

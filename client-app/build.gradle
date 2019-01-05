@@ -2,12 +2,16 @@ plugins {
     id 'org.jetbrains.kotlin.jvm'
     id 'java'
     id 'idea'
+    id 'application'
+    id "com.github.johnrengelman.shadow" version "4.0.3"
 }
 
 group 'org.anstreth'
 version '1.0-SNAPSHOT'
 
 sourceCompatibility = 1.8
+
+mainClassName = "client.ClientMainKt"
 
 repositories {
     mavenCentral()
