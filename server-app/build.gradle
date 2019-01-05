@@ -1,0 +1,32 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+group 'org.anstreth'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(":commons")
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "io.ktor:ktor-server-core:$ktor_version"
+    implementation "io.ktor:ktor-server-netty:$ktor_version"
+    implementation "io.ktor:ktor-jackson:$ktor_version"
+
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.8.1'
+
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}

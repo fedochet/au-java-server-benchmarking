@@ -36,10 +36,11 @@ class Session(private val config: SessionConfig) : Runnable {
                     if (Thread.interrupted()) return
                     executeSingleJob()
                     executedCount.incrementAndGet()
+                    Thread.sleep(config.pauseDuration)
                 }
             }
         } catch (e: Exception) {
-            logger.error("Something gone wrong with the server", e)
+            logger.error("Something gone wrong during session", e)
         } finally {
             timer.stop()
         }
