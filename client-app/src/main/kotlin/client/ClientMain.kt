@@ -1,60 +1,24 @@
 package client
 
-import com.fasterxml.jackson.databind.SerializationFeature
-import io.ktor.application.Application
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.features.CallLogging
-import io.ktor.features.ContentNegotiation
-import io.ktor.http.HttpStatusCode
-import io.ktor.jackson.jackson
-import io.ktor.request.receive
-import io.ktor.response.respond
-import io.ktor.routing.post
-import io.ktor.routing.routing
-import io.ktor.server.engine.ShutDownUrl
+import com.xenomachina.argparser.ArgParser
+import com.xenomachina.argparser.mainBody
+import config.ClientConfig
 import java.net.InetAddress
 
-@Volatile
-var session: Session? = null
-
-data class SessionConfig(
-    val serverAddress: InetAddress,
-    val serverPort: Int,
-    val numberOfElements: Int,
-    val numberOfRequests: Int,
-    val pauseDuration: Long
-)
-
-fun Application.main() {
-    install(CallLogging)
-    install(ContentNegotiation) {
-        jackson {
-            enable(SerializationFeature.INDENT_OUTPUT) // Pretty Prints the JSON
-        }
-    }
-
-    install(ShutDownUrl.ApplicationCallFeature) {
-        shutDownUrl = "/shutdown"
-        exitCodeSupplier = { 0 }
-    }
-
-    routing {
-        post("/start") {
-            val config = call.receive<SessionConfig>()
-            session = Session(config).apply { start() }
-            call.respond(HttpStatusCode.OK)
-        }
-
-        post("/stop") {
-            val currentSession = session ?: throw IllegalStateException("No session is running!")
-            session = null
-            currentSession.stop()
-
-            call.respond(HttpStatusCode.OK)
-        }
-    }
+class SessionConfigArgs(parser: ArgParser) {
+    val serverAddress: InetAddress by parser.storing("--address", help = "Address of the server") { InetAddress.getByName(this) }
+    val serverPort: Int by parser.storing("--port", help = "Port of the server") { toInt() }
+    val numberOfElements: Int by parser.storing("--N", help = "Number of elements in request") { toInt() }
+    val numberOfRequests: Int by parser.storing("--X", help = "Number of requests to perform") { toInt() }
+    val pauseDuration: Long by parser.storing("--delta", help = "Pause between requests, ms") { toLong() }
 }
 
-fun main(args: Array<String>) = io.ktor.server.netty.EngineMain.main(args)
+fun SessionConfigArgs.toSessionConfig() =
+    ClientConfig(serverAddress, serverPort, numberOfElements, numberOfRequests, pauseDuration)
+
+fun main(args: Array<String>) = mainBody {
+    val sessionConfig = ArgParser(args).parseInto(::SessionConfigArgs).toSessionConfig()
+
+    Session(sessionConfig).run()
+}
 

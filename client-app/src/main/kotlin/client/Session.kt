@@ -1,35 +1,24 @@
 package client
 
-import org.apache.commons.lang3.time.StopWatch
+import config.ClientConfig
 import org.slf4j.LoggerFactory
 import proto.IntArrayJob
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.Socket
-import java.util.concurrent.Executors
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 private val logger = LoggerFactory.getLogger(Session::class.java)
 
-class Session(private val config: SessionConfig) : Runnable {
+class Session(private val config: ClientConfig) : Runnable {
     private val socket = Socket(config.serverAddress, config.serverPort)
     private val dataInputStream = DataInputStream(socket.getInputStream())
     private val dataOutputStream = DataOutputStream(socket.getOutputStream())
 
-    private val worker = Executors.newSingleThreadExecutor()
-
-    private val timer = StopWatch()
-
-    fun start() {
-        if (timer.isStarted) throw IllegalStateException("This session is already started")
-        worker.submit(this)
-    }
-
     private val executedCount: AtomicInteger = AtomicInteger(0)
 
     override fun run() {
-        timer.start()
         try {
             socket.use {
                 repeat(config.numberOfRequests) {
@@ -41,8 +30,6 @@ class Session(private val config: SessionConfig) : Runnable {
             }
         } catch (e: Exception) {
             logger.error("Something gone wrong during session", e)
-        } finally {
-            timer.stop()
         }
     }
 
@@ -63,14 +50,6 @@ class Session(private val config: SessionConfig) : Runnable {
         }
         assert(result.dataList.isSorted()) {
             "Result array $result is not sorted"
-        }
-    }
-
-    fun stop() {
-        try {
-            socket.close()
-        } finally {
-            worker.shutdown()
         }
     }
 }
