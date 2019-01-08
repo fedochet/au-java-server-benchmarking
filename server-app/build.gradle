@@ -1,9 +1,13 @@
 plugins {
     id 'org.jetbrains.kotlin.jvm'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version "4.0.3"
 }
 
 group 'org.anstreth'
 version '1.0-SNAPSHOT'
+
+mainClassName = "servers.ServerMainKt"
 
 repositories {
     mavenCentral()

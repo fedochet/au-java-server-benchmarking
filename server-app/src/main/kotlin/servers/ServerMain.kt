@@ -22,6 +22,9 @@ enum class ServerType {
 
 data class ServerConfig(val serverType: ServerType, val port: Int)
 
+@Volatile
+private var currentServer: Server? = null
+
 fun main(args: Array<String>) {
     val server = embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -36,12 +39,35 @@ fun main(args: Array<String>) {
             }
 
             post("/server/start") {
+                if (currentServer != null) {
+                    call.respond(HttpStatusCode.BadRequest, "Server is already running")
+                    return@post
+                }
+
                 val config = call.receive<ServerConfig>()
-                println(config)
+                val server = ThreadPerConnectionServer()
+                currentServer = server
+                server.start(config.port)
                 call.respond(HttpStatusCode.OK)
             }
 
             post("/server/stop") {
+                currentServer?.shutdown()
+                currentServer = null
+                call.respond(HttpStatusCode.OK)
+            }
+
+            get("/stats/get") {
+                val currentStats = currentServer?.getStats()
+                if (currentStats != null) {
+                    call.respond(currentStats)
+                } else {
+                    call.respond(HttpStatusCode.BadRequest, "No server is running right now")
+                }
+            }
+
+            post("/stats/clear") {
+                currentServer?.clearStats()
                 call.respond(HttpStatusCode.OK)
             }
         }
