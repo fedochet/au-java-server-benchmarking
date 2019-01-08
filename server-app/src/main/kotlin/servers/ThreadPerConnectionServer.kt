@@ -2,6 +2,7 @@ package servers
 
 import org.slf4j.LoggerFactory
 import proto.IntArrayJob
+import stats.SessionStats
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException

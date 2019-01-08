@@ -1,24 +1,10 @@
 package servers
 
 import org.apache.commons.lang3.time.StopWatch
+import stats.ClientStats
+import stats.RequestStats
+import stats.SessionStats
 import java.util.concurrent.ConcurrentLinkedQueue
-
-data class RequestStats(
-    val requestStart: Long,
-    val jobStart: Long,
-    val jobEnd: Long,
-    val requestEnd: Long
-)
-
-data class ClientStats(
-    val connectionStart: Long,
-    val connectionEnd: Long,
-    val requests: List<RequestStats>
-)
-
-data class SessionStats(
-    val clients: List<ClientStats>
-)
 
 class SessionStatsCollector {
     private val clients = ConcurrentLinkedQueue<ClientStatsCollector>()

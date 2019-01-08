@@ -15,6 +15,7 @@ repositories {
 
 dependencies {
     implementation project(":proto-commons")
+    implementation project(":commons")
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation "io.ktor:ktor-server-core:$ktor_version"
