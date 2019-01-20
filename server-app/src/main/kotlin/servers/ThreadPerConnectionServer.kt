@@ -1,8 +1,6 @@
 package servers
 
 import org.slf4j.LoggerFactory
-import proto.IntArrayJob
-import stats.SessionRawStats
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException
@@ -10,19 +8,11 @@ import java.lang.Exception
 import java.net.*
 import java.util.*
 
-interface Server {
-    fun start(port: Int)
-    fun shutdown()
-    fun getStats(): SessionRawStats
-    fun clearStats()
-}
-
 private val logger = LoggerFactory.getLogger(ThreadPerConnectionServer::class.java)
 
-class ThreadPerConnectionServer : Server, Runnable {
+class ThreadPerConnectionServer : ServerBase(), Runnable {
     private val thread = Thread(this)
     private val serverSocket = ServerSocket()
-    private val statsCollector = SessionStatsCollector()
 
     private val clients: MutableSet<ClientHandler> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
 
@@ -31,14 +21,8 @@ class ThreadPerConnectionServer : Server, Runnable {
         thread.start()
     }
 
-    override fun getStats(): SessionRawStats = statsCollector.toSessionStats()
-
-    override fun clearStats() {
-        statsCollector.clear()
-    }
-
     override fun run() {
-        while (!Thread.interrupted()) {
+        while (!Thread.interrupted() && serverSocket.isClosed) {
             val client = serverSocket.accept()
             val handler = ClientHandler(client)
             statsCollector.addCollector(handler.clientStatsCollector)
@@ -93,7 +77,7 @@ private class ClientHandler(private val clientSocket: Socket) : Runnable {
                     dataInputStream.readFully(buffer)
 
                     requestStats.startJob()
-                    val result = performRequest(buffer)
+                    val result = performJob(buffer)
                     requestStats.finishJob()
 
                     dataOutputStream.writeInt(result.serializedSize)
@@ -115,10 +99,4 @@ private class ClientHandler(private val clientSocket: Socket) : Runnable {
     fun stop() {
         clientSocket.close()
     }
-}
-
-private fun performRequest(buffer: ByteArray): IntArrayJob {
-    val arrayJob = IntArrayJob.parseFrom(buffer)
-    val sorted = arrayJob.dataList.insertionSorted()
-    return IntArrayJob.newBuilder().addAllData(sorted).build()
 }
