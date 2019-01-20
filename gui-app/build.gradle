@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+group 'org.anstreth'
+version '1.0-SNAPSHOT'
+
+mainClassName = "gui.MainKt"
+ext.ktor_version = '1.0.1'
+
+processResources {
+    from(project(":client-app").shadowJar)
+    rename(project(":client-app").shadowJar.archivePath.name, 'client-app.jar')
+}
+
+repositories {
+    mavenCentral()
+    maven { url "http://kotlin.bintray.com/kotlinx" }
+}
+
+build.dependsOn ":client-app:shadowJar"
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+dependencies {
+    implementation project(":commons")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+
+    implementation "io.ktor:ktor-client-core:$ktor_version"
+    implementation "io.ktor:ktor-client-apache:$ktor_version"
+    implementation "io.ktor:ktor-client-json:$ktor_version"
+    implementation "io.ktor:ktor-client-gson:$ktor_version"
+}

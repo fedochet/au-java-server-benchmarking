@@ -26,12 +26,13 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
             val client = serverSocket.accept()
 
             val clientStatsCollector = ClientStatsCollector()
+            statsCollector.addCollector(clientStatsCollector)
 
             val thread = Thread {
                 val responseExecutor = Executors.newSingleThreadExecutor()
                 try {
-                    val dataOutputStream = DataOutputStream(client.getOutputStream())
                     val dataInputStream = DataInputStream(client.getInputStream())
+                    val dataOutputStream = DataOutputStream(client.getOutputStream())
 
                     client.use {
                         while (true) {
@@ -48,18 +49,21 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
                             val buffer = ByteArray(requestSize)
                             dataInputStream.readFully(buffer)
 
-                            executor.submit {
+                            executor.execute {
                                 requestStats.startJob()
                                 val result = performJob(buffer)
                                 requestStats.finishJob()
 
-                                responseExecutor.submit {
+                                responseExecutor.execute {
                                     try {
+                                        dataOutputStream.writeInt(result.serializedSize)
                                         result.writeTo(dataOutputStream)
+                                        dataOutputStream.flush()
                                     } catch (e: Exception) {
                                         logger.error("Error responding to client", e)
                                     } finally {
                                         requestStats.finishRequest()
+                                        clientStatsCollector.addRequest(requestStats.toRequestStatistics())
                                     }
                                 }
                             }

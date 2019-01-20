@@ -2,8 +2,10 @@ package servers
 
 import com.fasterxml.jackson.databind.SerializationFeature
 import config.ServerConfig
+import config.ServerType
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
@@ -14,6 +16,7 @@ import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import org.slf4j.event.Level
 
 @Volatile
 private var currentServer: Server? = null
@@ -24,6 +27,10 @@ fun main(args: Array<String>) {
             jackson {
                 enable(SerializationFeature.INDENT_OUTPUT) // Pretty Prints the JSON
             }
+        }
+
+        install(CallLogging) {
+            level = Level.INFO
         }
 
         routing {
@@ -38,7 +45,12 @@ fun main(args: Array<String>) {
                 }
 
                 val config = call.receive<ServerConfig>()
-                val server = ThreadPerConnectionServer()
+                val server: Server = when (config.serverType) {
+                    ServerType.THREAD_PER_CONNECTION -> ThreadPerConnectionServer()
+                    ServerType.THREAD_PLUS_POOL -> ThreadPlusPoolServer()
+                    ServerType.NON_BLOCKING -> TODO()
+                }
+
                 currentServer = server
                 server.start(config.port)
                 call.respond(HttpStatusCode.OK, Unit)

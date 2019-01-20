@@ -22,7 +22,7 @@ class ThreadPerConnectionServer : ServerBase(), Runnable {
     }
 
     override fun run() {
-        while (!Thread.interrupted() && serverSocket.isClosed) {
+        while (!Thread.interrupted() && !serverSocket.isClosed) {
             val client = serverSocket.accept()
             val handler = ClientHandler(client)
             statsCollector.addCollector(handler.clientStatsCollector)
