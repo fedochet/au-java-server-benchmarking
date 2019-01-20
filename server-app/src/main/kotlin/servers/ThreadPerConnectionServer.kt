@@ -2,7 +2,7 @@ package servers
 
 import org.slf4j.LoggerFactory
 import proto.IntArrayJob
-import stats.SessionStats
+import stats.SessionRawStats
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException
@@ -13,7 +13,7 @@ import java.util.*
 interface Server {
     fun start(port: Int)
     fun shutdown()
-    fun getStats(): SessionStats
+    fun getStats(): SessionRawStats
     fun clearStats()
 }
 
@@ -31,7 +31,7 @@ class ThreadPerConnectionServer : Server, Runnable {
         thread.start()
     }
 
-    override fun getStats(): SessionStats = statsCollector.toSessionStats()
+    override fun getStats(): SessionRawStats = statsCollector.toSessionStats()
 
     override fun clearStats() {
         statsCollector.clear()

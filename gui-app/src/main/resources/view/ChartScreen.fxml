@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.layout.VBox?>
+<VBox fx:controller="gui.ChartScreenController" xmlns="http://javafx.com/javafx/8.0.172-ea" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <LineChart fx:id="chartOne" prefHeight="414.0" prefWidth="600.0">
+        <xAxis>
+          <NumberAxis side="BOTTOM" />
+        </xAxis>
+        <yAxis>
+          <NumberAxis side="LEFT" />
+        </yAxis>
+      </LineChart>
+       <LineChart fx:id="chartTwo" prefHeight="414.0" prefWidth="600.0">
+           <xAxis>
+               <NumberAxis side="BOTTOM" />
+           </xAxis>
+           <yAxis>
+               <NumberAxis side="LEFT" />
+           </yAxis>
+       </LineChart>
+       <LineChart fx:id="chartThree" prefHeight="414.0" prefWidth="600.0">
+           <xAxis>
+               <NumberAxis side="BOTTOM" />
+           </xAxis>
+           <yAxis>
+               <NumberAxis side="LEFT" />
+           </yAxis>
+       </LineChart>
+
+   </children>
+
+</VBox>

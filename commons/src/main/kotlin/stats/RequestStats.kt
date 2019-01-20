@@ -6,3 +6,6 @@ data class RequestStats(
     val jobEnd: Long,
     val requestEnd: Long
 )
+
+val RequestStats.jobDuration get() = jobEnd - jobStart
+val RequestStats.requestDuration get() = requestEnd - requestStart

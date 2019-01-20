@@ -13,8 +13,8 @@ private val logger = LoggerFactory.getLogger(Session::class.java)
 
 class Session(private val config: ClientConfig) : Runnable {
     private val socket = Socket(config.serverAddress, config.serverPort)
-    private val dataInputStream = DataInputStream(socket.getInputStream())
     private val dataOutputStream = DataOutputStream(socket.getOutputStream())
+    private val dataInputStream = DataInputStream(socket.getInputStream())
 
     private val executedCount: AtomicInteger = AtomicInteger(0)
 

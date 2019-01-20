@@ -1,9 +1,9 @@
 package servers
 
 import org.apache.commons.lang3.time.StopWatch
-import stats.ClientStats
+import stats.ClientRawStats
 import stats.RequestStats
-import stats.SessionStats
+import stats.SessionRawStats
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class SessionStatsCollector {
@@ -17,7 +17,7 @@ class SessionStatsCollector {
         clients.clear()
     }
 
-    fun toSessionStats(): SessionStats = SessionStats(clients.map { it.toClientStats() })
+    fun toSessionStats(): SessionRawStats = SessionRawStats(clients.map { it.toClientStats() })
 }
 
 class ClientStatsCollector {
@@ -33,7 +33,7 @@ class ClientStatsCollector {
         requests.add(requestStats)
     }
 
-    fun toClientStats(): ClientStats = ClientStats(timer.startTime, timer.stopTime, requests.toList())
+    fun toClientStats(): ClientRawStats = ClientRawStats(timer.startTime, timer.stopTime, requests.toList())
 }
 
 class RequestStatsCollector {

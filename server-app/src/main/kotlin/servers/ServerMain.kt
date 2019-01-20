@@ -1,6 +1,7 @@
 package servers
 
 import com.fasterxml.jackson.databind.SerializationFeature
+import config.ServerConfig
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.ContentNegotiation
@@ -13,14 +14,6 @@ import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-
-enum class ServerType {
-    THREAD_PER_CONNECTION,
-    THREAD_PLUS_POOL,
-    NON_BLOCKING
-}
-
-data class ServerConfig(val serverType: ServerType, val port: Int)
 
 @Volatile
 private var currentServer: Server? = null
@@ -48,7 +41,7 @@ fun main(args: Array<String>) {
                 val server = ThreadPerConnectionServer()
                 currentServer = server
                 server.start(config.port)
-                call.respond(HttpStatusCode.OK)
+                call.respond(HttpStatusCode.OK, Unit)
             }
 
             post("/server/stop") {

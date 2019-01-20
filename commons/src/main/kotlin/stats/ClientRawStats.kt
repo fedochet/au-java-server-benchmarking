@@ -1,6 +1,6 @@
 package stats
 
-data class ClientStats(
+data class ClientRawStats(
     val connectionStart: Long,
     val connectionEnd: Long,
     val requests: List<RequestStats>
