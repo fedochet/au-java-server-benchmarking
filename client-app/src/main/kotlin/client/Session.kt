@@ -48,6 +48,9 @@ class Session(private val config: ClientConfig) : Runnable {
         assert(result.dataCount == arrayJob.dataCount) {
             "Result array $result have size ${result.dataCount} instead of ${arrayJob.dataCount}"
         }
+        assert(result.dataList.toSet() == arrayJob.dataList.toSet()) {
+            "Not all elements are present in array"
+        }
         assert(result.dataList.isSorted()) {
             "Result array $result is not sorted"
         }

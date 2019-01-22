@@ -48,7 +48,7 @@ fun main(args: Array<String>) {
                 val server: Server = when (config.serverType) {
                     ServerType.THREAD_PER_CONNECTION -> ThreadPerConnectionServer()
                     ServerType.THREAD_PLUS_POOL -> ThreadPlusPoolServer()
-                    ServerType.NON_BLOCKING -> TODO()
+                    ServerType.NON_BLOCKING -> NonBlockingServer()
                 }
 
                 currentServer = server
