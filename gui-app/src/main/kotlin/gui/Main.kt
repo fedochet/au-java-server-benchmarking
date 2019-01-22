@@ -138,14 +138,19 @@ class ChartScreenController : Initializable {
     lateinit var chartThree: LineChart<Number, Number>
 
     override fun initialize(location: URL?, resources: ResourceBundle?) {
-        chartOne.xAxis.label = "x axis label"
-        chartOne.yAxis.label = "y axis label, ms"
+        chartOne.title = "Server Request duration"
+        chartTwo.title = "Job Duration"
+        chartThree.title = "clientRequestDuration"
     }
 
-    fun showData(measurements: List<PerformanceStats>) {
-        val serverRequestDurationSeries = XYChart.Series<Number, Number>().apply { name = "serverRequestDuration" }
-        val jobDurationSeries = XYChart.Series<Number, Number>().apply { name = "jobDuration" }
-        val clientRequestDurationSeries = XYChart.Series<Number, Number>().apply { name = "clientRequestDuration" }
+    fun showData(varyingParam: VaryingParam, serverType: ServerType, measurements: List<PerformanceStats>) {
+        chartOne.xAxis.label = varyingParam.description
+        chartTwo.xAxis.label = varyingParam.description
+        chartThree.xAxis.label = varyingParam.description
+
+        val serverRequestDurationSeries = XYChart.Series<Number, Number>().apply { name = serverType.name }
+        val jobDurationSeries = XYChart.Series<Number, Number>().apply { name = serverType.name }
+        val clientRequestDurationSeries = XYChart.Series<Number, Number>().apply { name = serverType.name }
 
         serverRequestDurationSeries.data.addAll(measurements.map {
             XYChart.Data<Number, Number>(it.varyingParamValue, it.serverRequestDuration)
@@ -335,7 +340,7 @@ class MainScreenController : Initializable {
                 initOwner(mainScreen.scene.window)
             }
 
-            controller.showData(measurements.map { it.second })
+            controller.showData(varyingParam, serverType, measurements.map { it.second })
             stage.showAndWait()
 
         } catch (e: Exception) {
