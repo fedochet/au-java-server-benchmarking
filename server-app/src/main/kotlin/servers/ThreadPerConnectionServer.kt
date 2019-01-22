@@ -14,7 +14,7 @@ class ThreadPerConnectionServer : ServerBase(), Runnable {
     private val thread = Thread(this)
     private val serverSocket = ServerSocket()
 
-    private val clients: MutableSet<ClientHandler> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
+    private val clients: MutableSet<Worker> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
 
     override fun start(port: Int) {
         serverSocket.bind(InetSocketAddress(port))
@@ -24,7 +24,7 @@ class ThreadPerConnectionServer : ServerBase(), Runnable {
     override fun run() {
         while (!Thread.interrupted() && !serverSocket.isClosed) {
             val client = serverSocket.accept()
-            val handler = ClientHandler(client)
+            val handler = Worker(client)
             statsCollector.addCollector(handler.clientStatsCollector)
             clients.add(handler)
 
@@ -51,17 +51,15 @@ class ThreadPerConnectionServer : ServerBase(), Runnable {
             }
         }
     }
-}
 
-private class ClientHandler(private val clientSocket: Socket) : Runnable {
-    val dataInputStream = DataInputStream(clientSocket.getInputStream())
-    val dataOutputStream = DataOutputStream(clientSocket.getOutputStream())
+    private class Worker(private val clientSocket: Socket) : Runnable {
+        val dataInputStream = DataInputStream(clientSocket.getInputStream())
+        val dataOutputStream = DataOutputStream(clientSocket.getOutputStream())
 
-    val clientStatsCollector = ClientStatsCollector()
+        val clientStatsCollector = ClientStatsCollector()
 
-    override fun run() {
-        try {
-            clientSocket.use {
+        override fun run() {
+            try {
                 while (true) {
                     val requestStats = RequestStatsCollector()
 
@@ -88,15 +86,16 @@ private class ClientHandler(private val clientSocket: Socket) : Runnable {
 
                     clientStatsCollector.addRequest(requestStats.toRequestStatistics())
                 }
+            } catch (e: Exception) {
+                logger.error("Error handling client", e)
+            } finally {
+                runCatching { clientSocket.close() }
+                clientStatsCollector.disconnect()
             }
-        } catch (e: Exception) {
-            logger.error("Error handling client", e)
-        } finally {
-            clientStatsCollector.disconnect()
         }
-    }
 
-    fun stop() {
-        clientSocket.close()
+        fun stop() {
+            clientSocket.close()
+        }
     }
 }

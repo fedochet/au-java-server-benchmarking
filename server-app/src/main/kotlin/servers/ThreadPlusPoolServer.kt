@@ -6,6 +6,8 @@ import java.io.DataOutputStream
 import java.io.EOFException
 import java.net.InetSocketAddress
 import java.net.ServerSocket
+import java.net.Socket
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 private val logger = LoggerFactory.getLogger(ThreadPlusPoolServer::class.java)
@@ -28,57 +30,7 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
             val clientStatsCollector = ClientStatsCollector()
             statsCollector.addCollector(clientStatsCollector)
 
-            val thread = Thread {
-                val responseExecutor = Executors.newSingleThreadExecutor()
-                try {
-                    val dataInputStream = DataInputStream(client.getInputStream())
-                    val dataOutputStream = DataOutputStream(client.getOutputStream())
-
-                    client.use {
-                        while (true) {
-                            val requestStats = RequestStatsCollector()
-
-                            val requestSize = try {
-                                dataInputStream.readInt()
-                            } catch (e: EOFException) { // socket is closed
-                                break
-                            }
-
-                            requestStats.startRequest()
-
-                            val buffer = ByteArray(requestSize)
-                            dataInputStream.readFully(buffer)
-
-                            executor.execute {
-                                requestStats.startJob()
-                                val result = performJob(buffer)
-                                requestStats.finishJob()
-
-                                responseExecutor.execute {
-                                    try {
-                                        dataOutputStream.writeInt(result.serializedSize)
-                                        result.writeTo(dataOutputStream)
-                                        dataOutputStream.flush()
-                                    } catch (e: Exception) {
-                                        logger.error("Error responding to client", e)
-                                    } finally {
-                                        requestStats.finishRequest()
-                                        clientStatsCollector.addRequest(requestStats.toRequestStatistics())
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                } catch (e: Exception) {
-                    logger.error("Error handling client", e)
-                } finally {
-                    clientStatsCollector.disconnect()
-                    responseExecutor.shutdown()
-                }
-            }
-
-            thread.start()
+            Thread(Worker(client, clientStatsCollector, executor)).start()
         }
     }
 
@@ -86,4 +38,59 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
         runCatching { serverSocket.close() }
         executor.shutdown()
     }
+
+    private class Worker(
+        private val client: Socket,
+        private val statsCollector: ClientStatsCollector,
+        private val executor: Executor
+    ) : Runnable {
+
+        private val dataInputStream = DataInputStream(client.getInputStream())
+        private val dataOutputStream = DataOutputStream(client.getOutputStream())
+        private val responseExecutor = Executors.newSingleThreadExecutor()
+
+        override fun run() {
+            try {
+                while (true) {
+                    val requestStats = RequestStatsCollector()
+                    requestStats.startRequest()
+
+                    val requestSize = try {
+                        dataInputStream.readInt()
+                    } catch (e: EOFException) { // socket is closed
+                        break
+                    }
+
+                    val buffer = ByteArray(requestSize)
+                    dataInputStream.readFully(buffer)
+
+                    executor.execute {
+                        requestStats.startJob()
+                        val result = performJob(buffer)
+                        requestStats.finishJob()
+
+                        responseExecutor.execute {
+                            try {
+                                dataOutputStream.writeInt(result.serializedSize)
+                                result.writeTo(dataOutputStream)
+                                dataOutputStream.flush()
+                            } catch (e: Exception) {
+                                logger.error("Error responding to client", e)
+                            } finally {
+                                requestStats.finishRequest()
+                                statsCollector.addRequest(requestStats.toRequestStatistics())
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error("Error handling client", e)
+            } finally {
+                runCatching { client.close() }
+                statsCollector.disconnect()
+                responseExecutor.shutdown()
+            }
+        }
+    }
 }
+

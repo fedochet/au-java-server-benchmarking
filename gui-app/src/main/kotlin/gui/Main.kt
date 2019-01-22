@@ -331,7 +331,7 @@ class MainScreenController : Initializable {
 
             val stage = Stage().apply {
                 title = "Charts with result"
-                scene = Scene(root)
+                scene = Scene(root, 450.0, 450.0)
                 initOwner(mainScreen.scene.window)
             }
 

@@ -34,7 +34,11 @@ class NonBlockingServer : ServerBase(), Runnable {
                 while (!Thread.interrupted() && readSelector.isOpen) {
                     while (true) {
                         val (socketChannel, readerAttachment) = readRegistrationQueue.poll() ?: break
-                        socketChannel.register(readSelector, OP_WRITE, readerAttachment)
+                        try {
+                            socketChannel.register(readSelector, OP_WRITE, readerAttachment)
+                        } catch (e: RuntimeException) {
+                            logger.warn("Cannot register channel in read selector", e)
+                        }
                     }
 
                     val selected = readSelector.select()
@@ -126,7 +130,11 @@ class NonBlockingServer : ServerBase(), Runnable {
                 while (!Thread.interrupted() && writeSelector.isOpen) {
                     while (true) {
                         val (socketChannel, writerAttachment) = writeRegistrationQueue.poll() ?: break
-                        socketChannel.register(writeSelector, OP_WRITE, writerAttachment)
+                        try {
+                            socketChannel.register(writeSelector, OP_WRITE, writerAttachment)
+                        } catch (e: RuntimeException) {
+                            logger.warn("Cannot register channel in write selector", e)
+                        }
                     }
 
                     val selected = writeSelector.select()
