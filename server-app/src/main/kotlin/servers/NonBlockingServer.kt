@@ -13,16 +13,6 @@ import java.util.concurrent.Executors
 
 private val logger = LoggerFactory.getLogger(NonBlockingServer::class.java)
 
-private data class ReadRegistrationJob(
-    val socketChannel: SocketChannel,
-    val readerAttachment: ReaderAttachment
-)
-
-private data class WriteRegistrationJob(
-    val socketChannel: SocketChannel,
-    val writerAttachment: WriterAttachment
-)
-
 class NonBlockingServer : ServerBase(), Runnable {
     private val executor = Executors.newFixedThreadPool(4)
     private val serverSocketChannel = ServerSocketChannel.open()
@@ -58,9 +48,15 @@ class NonBlockingServer : ServerBase(), Runnable {
                         val attachment = key.readerAttachment
 
                         val currentInfo = attachment.currentInfo
+                        val arraySize = currentInfo?.arraySize
 
                         try {
-                            if (currentInfo == null) {
+                            if (arraySize == null) {
+                                val requestStats = RequestStatsCollector()
+                                val currentRequestInfo = CurrentRequestInfo(requestStats)
+                                attachment.currentInfo = currentRequestInfo
+
+                                requestStats.startRequest()
                                 val read = socketChannel.read(attachment.sizeBuffer)
 
                                 if (read == -1) {
@@ -70,13 +66,12 @@ class NonBlockingServer : ServerBase(), Runnable {
                                 }
 
                                 if (attachment.sizeBuffer.isFull) {
-                                    val requestStats = RequestStatsCollector()
                                     requestStats.startRequest()
 
                                     attachment.sizeBuffer.flip()
                                     val expectedArraySize = attachment.sizeBuffer.getInt()
                                     attachment.sizeBuffer.clear()
-                                    attachment.currentInfo = CurrentRequestInfo(expectedArraySize, requestStats)
+                                    currentRequestInfo.arraySize = expectedArraySize
                                     attachment.arrayBuffer = ByteBuffer.allocate(expectedArraySize)
                                 }
                             } else {
@@ -88,7 +83,7 @@ class NonBlockingServer : ServerBase(), Runnable {
                                 }
 
                                 if (attachment.arrayBuffer.isFull) {
-                                    val arrayJob = ByteArray(currentInfo.arraySize)
+                                    val arrayJob = ByteArray(arraySize)
 
                                     attachment.arrayBuffer.flip()
                                     attachment.arrayBuffer.get(arrayJob)
@@ -195,9 +190,20 @@ class NonBlockingServer : ServerBase(), Runnable {
     }
 }
 
-private val EMPTY_BUFFER = ByteBuffer.allocate(0)
 
-private class CurrentRequestInfo(val arraySize: Int, var statsCollector: RequestStatsCollector)
+private data class ReadRegistrationJob(
+    val socketChannel: SocketChannel,
+    val readerAttachment: ReaderAttachment
+)
+
+private data class WriteRegistrationJob(
+    val socketChannel: SocketChannel,
+    val writerAttachment: WriterAttachment
+)
+
+private class CurrentRequestInfo(var statsCollector: RequestStatsCollector, var arraySize: Int? = null)
+
+private val EMPTY_BUFFER = ByteBuffer.allocate(0)
 
 /**
  * Fields are not volatile because they can be changed only in one thread (reader thread).
