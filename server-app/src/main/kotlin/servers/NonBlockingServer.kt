@@ -13,6 +13,16 @@ import java.util.concurrent.Executors
 
 private val logger = LoggerFactory.getLogger(NonBlockingServer::class.java)
 
+private data class ReadRegistrationJob(
+    val socketChannel: SocketChannel,
+    val readerAttachment: ReaderAttachment
+)
+
+private data class WriteRegistrationJob(
+    val socketChannel: SocketChannel,
+    val writerAttachment: WriterAttachment
+)
+
 class NonBlockingServer : ServerBase(), Runnable {
     private val executor = Executors.newFixedThreadPool(4)
     private val serverSocketChannel = ServerSocketChannel.open()
@@ -20,8 +30,8 @@ class NonBlockingServer : ServerBase(), Runnable {
     private val readSelector = Selector.open()
     private val writeSelector = Selector.open()
 
-    private val readRegistrationQueue = ConcurrentLinkedQueue<Pair<SocketChannel, ReaderAttachment>>()
-    private val writeRegistrationQueue = ConcurrentLinkedQueue<Pair<SocketChannel, WriterAttachment>>()
+    private val readRegistrationQueue = ConcurrentLinkedQueue<ReadRegistrationJob>()
+    private val writeRegistrationQueue = ConcurrentLinkedQueue<WriteRegistrationJob>()
 
     private val acceptThread = Thread(this)
 
@@ -47,48 +57,64 @@ class NonBlockingServer : ServerBase(), Runnable {
                         val socketChannel = key.socketChannel
                         val attachment = key.readerAttachment
 
-                        val arraySize = attachment.arraySize
+                        val currentInfo = attachment.currentInfo
 
                         try {
-                            if (arraySize == null) {
+                            if (currentInfo == null) {
                                 val read = socketChannel.read(attachment.sizeBuffer)
 
                                 if (read == -1) {
+                                    attachment.clientStatsCollector.disconnect()
                                     key.cancel()
                                     continue
                                 }
 
                                 if (attachment.sizeBuffer.isFull) {
+                                    val requestStats = RequestStatsCollector()
+                                    requestStats.startRequest()
+
                                     attachment.sizeBuffer.flip()
                                     val expectedArraySize = attachment.sizeBuffer.getInt()
                                     attachment.sizeBuffer.clear()
-                                    attachment.arraySize = expectedArraySize
+                                    attachment.currentInfo = CurrentRequestInfo(expectedArraySize, requestStats)
                                     attachment.arrayBuffer = ByteBuffer.allocate(expectedArraySize)
                                 }
                             } else {
                                 val read = socketChannel.read(attachment.arrayBuffer)
                                 if (read == -1) {
+                                    attachment.clientStatsCollector.disconnect()
                                     key.cancel()
                                     continue
                                 }
 
                                 if (attachment.arrayBuffer.isFull) {
-                                    val arrayJob = ByteArray(arraySize)
+                                    val arrayJob = ByteArray(currentInfo.arraySize)
 
                                     attachment.arrayBuffer.flip()
                                     attachment.arrayBuffer.get(arrayJob)
-                                    attachment.arraySize = null
+                                    attachment.currentInfo = null
                                     attachment.arrayBuffer = EMPTY_BUFFER
 
                                     executor.submit {
+                                        currentInfo.statsCollector.startJob()
                                         val result = performJob(arrayJob)
-                                        writeRegistrationQueue.add(socketChannel to WriterAttachment(result))
+                                        currentInfo.statsCollector.finishJob()
+
+                                        writeRegistrationQueue.add(WriteRegistrationJob(
+                                            socketChannel,
+                                            WriterAttachment(
+                                                attachment.clientStatsCollector,
+                                                currentInfo.statsCollector,
+                                                result
+                                            )
+                                        ))
                                         writeSelector.wakeup()
                                     }
                                 }
                             }
                         } catch (e: IOException) {
                             logger.warn("Error during reading from client", e)
+                            attachment.clientStatsCollector.disconnect()
                             key.cancel()
                         }
 
@@ -121,9 +147,11 @@ class NonBlockingServer : ServerBase(), Runnable {
                         try {
                             socketChannel.write(attachment.message)
                             if (attachment.message.all { it.isFull }) {
+                                attachment.requestStats.finishRequest()
+                                attachment.clientStats.addRequest(attachment.requestStats.toRequestStatistics())
                                 key.cancel()
                             }
-                        } catch (e: Exception) {
+                        } catch (e: IOException) {
                             logger.warn("Error during writing to client", e)
                             key.cancel()
                         }
@@ -149,7 +177,14 @@ class NonBlockingServer : ServerBase(), Runnable {
             while (!Thread.interrupted() && serverSocketChannel.isOpen) {
                 val clientSocketChannel = serverSocketChannel.accept()
                 clientSocketChannel.configureBlocking(false)
-                readRegistrationQueue.add(clientSocketChannel to ReaderAttachment())
+
+                val clientStatsCollector = ClientStatsCollector()
+                statsCollector.addCollector(clientStatsCollector)
+
+                readRegistrationQueue.add(ReadRegistrationJob(
+                    clientSocketChannel,
+                    ReaderAttachment(clientStatsCollector)
+                ))
                 readSelector.wakeup()
             }
         } catch (e: AsynchronousCloseException) {
@@ -162,24 +197,33 @@ class NonBlockingServer : ServerBase(), Runnable {
 
 private val EMPTY_BUFFER = ByteBuffer.allocate(0)
 
-private class ReaderAttachment {
+private class CurrentRequestInfo(val arraySize: Int, var statsCollector: RequestStatsCollector)
+
+/**
+ * Fields are not volatile because they can be changed only in one thread (reader thread).
+ */
+private class ReaderAttachment(val clientStatsCollector: ClientStatsCollector) {
     val sizeBuffer: ByteBuffer = ByteBuffer.allocate(4)
-    var arraySize: Int? = null
+    var currentInfo: CurrentRequestInfo? = null
     var arrayBuffer: ByteBuffer = EMPTY_BUFFER
 }
 
-private class WriterAttachment(intArrayJob: IntArrayJob) {
+private class WriterAttachment(
+    val clientStats: ClientStatsCollector,
+    val requestStats: RequestStatsCollector,
+    intArrayJob: IntArrayJob
+) {
     val sizeBuffer: ByteBuffer = ByteBuffer.allocate(4)
-    val buffer: ByteBuffer = ByteBuffer.allocate(intArrayJob.serializedSize)
+    val arrayBuffer: ByteBuffer = ByteBuffer.allocate(intArrayJob.serializedSize)
 
-    val message: Array<ByteBuffer> = arrayOf(sizeBuffer, buffer)
+    val message: Array<ByteBuffer> = arrayOf(sizeBuffer, arrayBuffer)
 
     init {
         sizeBuffer.putInt(intArrayJob.serializedSize)
         sizeBuffer.flip()
 
-        buffer.put(intArrayJob.toByteArray())
-        buffer.flip()
+        arrayBuffer.put(intArrayJob.toByteArray())
+        arrayBuffer.flip()
     }
 }
 

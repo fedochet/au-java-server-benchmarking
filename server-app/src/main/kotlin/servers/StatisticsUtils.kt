@@ -37,19 +37,33 @@ class ClientStatsCollector {
 }
 
 class RequestStatsCollector {
-    private val requestTimer = StopWatch()
-    private val jobTimer = StopWatch()
+    @Volatile
+    private var requestStart: Long? = null
+    @Volatile
+    private var jobStart: Long? = null
+    @Volatile
+    private var jobEnd: Long? = null
+    @Volatile
+    private var requestEnd: Long? = null
 
-    fun startRequest() = requestTimer.start()
-    fun startJob() = jobTimer.start()
-    fun finishJob() = jobTimer.stop()
-    fun finishRequest() = requestTimer.stop()
+    fun startRequest() {
+        requestStart = System.currentTimeMillis()
+    }
+    fun startJob() {
+        jobStart = System.currentTimeMillis()
+    }
+    fun finishJob() {
+        jobEnd = System.currentTimeMillis()
+    }
+    fun finishRequest() {
+        requestEnd = System.currentTimeMillis()
+    }
 
     fun toRequestStatistics(): RequestStats = RequestStats(
-        requestTimer.startTime,
-        jobTimer.startTime,
-        jobTimer.stopTime,
-        requestTimer.stopTime
+        requestStart!!,
+        jobStart!!,
+        jobEnd!!,
+        requestEnd!!
     )
 }
 
