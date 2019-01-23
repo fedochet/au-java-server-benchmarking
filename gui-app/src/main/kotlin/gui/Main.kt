@@ -328,7 +328,7 @@ class MainScreenController : Initializable {
                 computeMeasurements(varyingParam, config, stats)?.let { config to it }
             }
 
-            saveAsCsv(varyingParam, measurements)
+            saveAsCsv(serverType, varyingParam, measurements)
 
             val loader = FXMLLoader("view/ChartScreen.fxml".asResource())
             val root = loader.load<Parent>()
@@ -378,7 +378,7 @@ class MainScreenController : Initializable {
             }
 
             val validTime = lastValidRequestEnd - firstValidRequestStart
-            validTime / validRequestsCount.toDouble()- config.clientConfig.pauseDuration
+            validTime / validRequestsCount.toDouble() - config.clientConfig.pauseDuration
         }.average()
 
         val validRequests = stats.clients.asSequence()
@@ -456,7 +456,7 @@ private val dateFormat =
         .ofPattern("yyyy-MM-dd HH:mm:ss")
         .withZone(ZoneId.systemDefault())
 
-private fun saveAsCsv(varyingParam: VaryingParam, measurements: List<Pair<SingleRunConfig, PerformanceStats>>) {
+private fun saveAsCsv(serverType: ServerType, varyingParam: VaryingParam, measurements: List<Pair<SingleRunConfig, PerformanceStats>>) {
     if (measurements.isEmpty()) return
 
     val currentTime = dateFormat.format(Instant.now())
@@ -466,7 +466,7 @@ private fun saveAsCsv(varyingParam: VaryingParam, measurements: List<Pair<Single
     val clientRequestFile = File("Client request duration $currentTime.csv").apply { createNewFile() }
 
     val (firstConst, secondConst) = VaryingParam.values().toMutableList().apply { remove(varyingParam) }
-    val constParamsTitle = "X, ${firstConst.description}, ${secondConst.description}"
+    val constParamsTitle = "Server type, X, ${firstConst.description}, ${secondConst.description}"
 
     val (firstConfig, _) = measurements.first()
     val (firstVal, secondVal) = when (varyingParam) {
@@ -475,7 +475,7 @@ private fun saveAsCsv(varyingParam: VaryingParam, measurements: List<Pair<Single
         VaryingParam.DELTA -> Pair(firstConfig.clientConfig.numberOfElements, firstConfig.numberOfClients)
     }
 
-    val constParamsValues = "${firstConfig.clientConfig.numberOfRequests}, $firstVal, $secondVal"
+    val constParamsValues = "$serverType, ${firstConfig.clientConfig.numberOfRequests}, $firstVal, $secondVal"
 
     jobDurationFile.printWriter().use { writer ->
         writer.println("${varyingParam.description}, Job duration")

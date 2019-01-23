@@ -61,18 +61,17 @@ class ThreadPerConnectionServer : ServerBase(), Runnable {
         override fun run() {
             try {
                 while (true) {
-                    val requestStats = RequestStatsCollector()
-
                     val requestSize = try {
                         dataInputStream.readInt()
                     } catch (e: EOFException) { // socket is closed
                         break
                     }
 
-                    requestStats.startRequest()
-
                     val buffer = ByteArray(requestSize)
                     dataInputStream.readFully(buffer)
+
+                    val requestStats = RequestStatsCollector()
+                    requestStats.startRequest()
 
                     requestStats.startJob()
                     val result = performJob(buffer)

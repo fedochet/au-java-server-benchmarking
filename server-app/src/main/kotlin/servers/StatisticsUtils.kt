@@ -38,33 +38,38 @@ class ClientStatsCollector {
 
 class RequestStatsCollector {
     @Volatile
-    private var requestStart: Long? = null
+    private var requestStart: Long = 0
     @Volatile
-    private var jobStart: Long? = null
+    private var jobStart: Long = 0
     @Volatile
-    private var jobEnd: Long? = null
+    private var jobEnd: Long = 0
     @Volatile
-    private var requestEnd: Long? = null
+    private var requestEnd: Long = 0
 
     fun startRequest() {
         requestStart = System.currentTimeMillis()
     }
+
     fun startJob() {
         jobStart = System.currentTimeMillis()
     }
+
     fun finishJob() {
         jobEnd = System.currentTimeMillis()
     }
+
     fun finishRequest() {
         requestEnd = System.currentTimeMillis()
     }
 
     fun toRequestStatistics(): RequestStats = RequestStats(
-        requestStart!!,
-        jobStart!!,
-        jobEnd!!,
-        requestEnd!!
+        requirePositive(requestStart),
+        requirePositive(jobStart),
+        requirePositive(jobEnd),
+        requirePositive(requestEnd)
     )
 }
 
 private val StopWatch.stopTime get() = startTime + time
+private fun requirePositive(n: Long): Long =
+    if (n > 0) n else throw IllegalArgumentException("$n is not positive")

@@ -52,9 +52,6 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
         override fun run() {
             try {
                 while (true) {
-                    val requestStats = RequestStatsCollector()
-                    requestStats.startRequest()
-
                     val requestSize = try {
                         dataInputStream.readInt()
                     } catch (e: EOFException) { // socket is closed
@@ -63,6 +60,9 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
 
                     val buffer = ByteArray(requestSize)
                     dataInputStream.readFully(buffer)
+
+                    val requestStats = RequestStatsCollector()
+                    requestStats.startRequest()
 
                     executor.execute {
                         requestStats.startJob()
@@ -74,11 +74,11 @@ class ThreadPlusPoolServer : ServerBase(), Runnable {
                                 dataOutputStream.writeInt(result.serializedSize)
                                 result.writeTo(dataOutputStream)
                                 dataOutputStream.flush()
-                            } catch (e: Exception) {
-                                logger.error("Error responding to client", e)
-                            } finally {
+
                                 requestStats.finishRequest()
                                 statsCollector.addRequest(requestStats.toRequestStatistics())
+                            } catch (e: Exception) {
+                                logger.error("Error responding to client", e)
                             }
                         }
                     }
